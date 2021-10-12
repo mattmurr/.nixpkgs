@@ -23,54 +23,39 @@ let
         lsp-colors
         vim-deus
         lightline-vim
+        nerdcommenter
       ];
       customRC = ''
         set title
         autocmd BufEnter * let &titlestring = expand("%:t") . " - NVIM"
-
         set autoread
         autocmd CursorHold * checktime
-
         let mapleader=" "
-
         set number relativenumber
-
         set inccommand="nosplit"
-
         set hlsearch
         set ignorecase
         set smartcase
-
         set updatetime=250
         set signcolumn=yes
-
         set undofile
-
         set completeopt=menuone,noselect
-
         set t_Co=256
         set termguicolors
-
         let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
         let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
-
         set cursorline
-
         set background=dark
         colorscheme deus
         let g:deus_termcolors=256
-
         set rtp+=${pkgs.fzf.out}/share/vim-plugins/fzf
-
         let g:fzf_action = {
           \ 'ctrl-h': 'split',
           \ 'ctrl-v': 'vsplit' }
         let g:fzf_buffers_jump = 1
-
         noremap <leader>t :Files<CR>
         noremap <leader>g :GFiles<CR>
         noremap <leader>b :Buffers<CR>
-
         lua << EOF
         require"nvim-treesitter.configs".setup({
           ensure_installed = "maintained",
@@ -82,21 +67,16 @@ let
             additional_vim_regex_highlighting = false,
           }
         })
-
         local nvim_lsp = require('lspconfig')
-
         -- Use an on_attach function to only map the following keys
         -- after the language server attaches to the current buffer
         local on_attach = function(client, bufnr)
           local function buf_set_keymap(...) vim.api.nvim_buf_set_keymap(bufnr, ...) end
           local function buf_set_option(...) vim.api.nvim_buf_set_option(bufnr, ...) end
-
           -- Enable completion triggered by <c-x><c-o>
           buf_set_option('omnifunc', 'v:lua.vim.lsp.omnifunc')
-
           -- Mappings.
           local opts = { noremap=true, silent=true }
-
           -- See `:help vim.lsp.*` for documentation on any of the below functions
           buf_set_keymap('n', 'gD', '<cmd>lua vim.lsp.buf.declaration()<CR>', opts)
           buf_set_keymap('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<CR>', opts)
@@ -115,12 +95,10 @@ let
           buf_set_keymap('n', ']d', '<cmd>lua vim.lsp.diagnostic.goto_next()<CR>', opts)
           buf_set_keymap('n', '<space>q', '<cmd>lua vim.lsp.diagnostic.set_loclist()<CR>', opts)
           buf_set_keymap('n', '<space>f', '<cmd>lua vim.lsp.buf.formatting()<CR>', opts)
-
         end
-
         -- Use a loop to conveniently call 'setup' on multiple servers and
         -- map buffer local keybindings when the language server attaches
-        local servers = { 'tsserver', 'ccls', 'pyright', 'gopls', 'rnix' }
+        local servers = { 'tsserver', 'ccls', 'pyright', 'gopls', 'rnix', 'jdtls' }
         for _, lsp in ipairs(servers) do
           nvim_lsp[lsp].setup {
             on_attach = on_attach,
@@ -129,7 +107,6 @@ let
             }
           }
         end
-
         require'compe'.setup {
           enabled = true;
           autocomplete = true;
@@ -143,18 +120,15 @@ let
           max_kind_width = 100;
           max_menu_width = 100;
           documentation = true;
-
           source = {
             path = true;
             nvim_lsp = true;
             treesitter = true;
           };
         }
-
         local t = function(str)
           return vim.api.nvim_replace_termcodes(str, true, true, true)
         end
-
         local check_back_space = function()
             local col = vim.fn.col('.') - 1
             if col == 0 or vim.fn.getline('.'):sub(col, col):match('%s') then
@@ -163,7 +137,6 @@ let
                 return false
             end
         end
-
         -- Use (s-)tab to:
         --- move to prev/next item in completion menuone
         --- jump to prev/next snippet's placeholder
@@ -183,12 +156,10 @@ let
             return t "<S-Tab>"
           end
         end
-
         vim.api.nvim_set_keymap("i", "<Tab>", "v:lua.tab_complete()", {expr = true})
         vim.api.nvim_set_keymap("s", "<Tab>", "v:lua.tab_complete()", {expr = true})
         vim.api.nvim_set_keymap("i", "<S-Tab>", "v:lua.s_tab_complete()", {expr = true})
         vim.api.nvim_set_keymap("s", "<S-Tab>", "v:lua.s_tab_complete()", {expr = true})
-
         --This line is important for auto-import
         vim.api.nvim_set_keymap('i', '<cr>', 'compe#confirm("<cr>")', { expr = true })
         vim.api.nvim_set_keymap('i', '<c-space>', 'compe#complete()', { expr = true })
@@ -196,6 +167,7 @@ let
       '';
     };
   };
+  isAppleSilicon = (pkgs.stdenv.isDarwin && pkgs.stdenv.isAarch64);
 in
 {
   system.defaults.NSGlobalDomain = {
@@ -227,12 +199,6 @@ in
 
   system.defaults.LaunchServices.LSQuarantine = false;
 
-  # Auto upgrade nix package and the daemon service.
-  services.nix-daemon.enable = true;
-  nix.package = pkgs.nix;
-
-  nix.trustedUsers = [ "root" "matt" ];
-
   # Allow non-free software
   nixpkgs.config.allowUnfree = true;
 
@@ -250,7 +216,6 @@ in
         pkgs.pass.withExtensions (ext: with ext; [ pass-otp ])
       )
       pkgs.pinentry_mac
-      pkgs.spring-boot
       neovim
       pkgs.oh-my-zsh
       pkgs.alacritty
@@ -260,33 +225,40 @@ in
       pkgs.nodejs-16_x
       pkgs.nodePackages.typescript
       pkgs.nodePackages.typescript-language-server
-      pkgs.ccls
       pkgs.gopls
+      pkgs.rnix-lsp
       pkgs.go
       pkgs.deno
-      pkgs.rnix-lsp
+      pkgs.spring-boot
+      pkgs.vscode
+      pkgs.awscli2
+      pkgs.aws-vault
+      pkgs.google-cloud-sdk
+      pkgs.jdk11
     ];
 
   homebrew = {
     enable = true;
     autoUpdate = true;
-    brewPrefix = "/opt/homebrew/bin";
+    brewPrefix = lib.optionalString isAppleSilicon "/opt/homebrew/bin";
+    cleanup = "uninstall";
     taps = [
-      "simnalamburt/x"
+      "homebrew/cask"
       "homebrew/cask-drivers"
-    ];
+    ] ++ lib.optionals isAppleSilicon ["simnalamburt/x"];
     brews = [
-      "simnalamburt/x/podman-apple-silicon"
-    ];
+    ] ++ lib.optionals isAppleSilicon ["simnalamburt/x/podman-apple-silicon"];
     casks = [
       "brave-browser"
       "slack"
       "rectangle"
+      "alt-tab"
       "icanhazshortcut"
       "whatsapp"
       "zoom"
       "discord"
-    ];
+      "logitech-options"
+    ] ++ lib.optionals (!isAppleSilicon) ["docker"];
   };
 
   environment.etc = {
@@ -306,6 +278,8 @@ in
 
   environment.variables = {
     EDITOR = "nvim";
+    AWS_VAULT_BACKEND = "pass";
+    AWS_VAULT_PASS_PREFIX = "aws-vault";
   };
 
   programs.zsh = {
@@ -313,18 +287,17 @@ in
     enableCompletion = true;
     enableBashCompletion = true;
     enableSyntaxHighlighting = true;
-    loginShellInit = ''
+    loginShellInit = lib.optionalString isAppleSilicon ''
       eval "$(/opt/homebrew/bin/brew shellenv)"
     '';
     interactiveShellInit = ''
-      alias docker='podman'
       alias ls='ls -G'
       alias ll='ls -l -G'
 
-      plugins=(git direnv)
-
       plugins+=tmux
       ZSH_TMUX_AUTOSTART=true
+      
+      plugins=(git direnv)
 
       plugins+=vi-mode
       VI_MODE_RESET_PROMPT_ON_MODE_CHANGE=true
@@ -347,90 +320,67 @@ in
     extraConfig = ''
       # Vi mode
       set-window-option -g mode-keys vi
-
       # Escape key is instant
       set -s escape-time 0
-
       # increase scrollback buffer size
       set -g history-limit 50000
-
       # tmux messages are displayed for 4 seconds
       set -g display-time 4000
-
       # refresh 'status-left' and 'status-right' more often
       set -g status-interval 5
-
       # focus events enabled for terminals that support them
       set -g focus-events on
-
       # super useful when using "grouped sessions" and multi-monitor setup
       setw -g aggressive-resize on
-
       set -g set-titles on
       set -g set-titles-string "#T"
       set-option -g automatic-rename on
-
       set-option -sa terminal-overrides ',XXX:RGB'
-
       set -g status-fg colour248
       set -g status-bg colour236
-
       set -g window-status-format "#[fg=colour248] #I #W "
       set -g window-status-current-format "#[fg=colour255,noreverse,bg=colour241] #I #W "
-
       set -g status-right "%a %d %b %I:%M:%S%p"
       set -g status-right-length 300
-
       set -g mouse on
       set-option -s set-clipboard off
       bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel \
       "pbcopy"
-
       bind-key -T root WheelUpPane select-pane -t =\; copy-mode -e\; send-keys -M
-
       # Double LMB Select & Copy (Word)
       bind-key -T copy-mode-vi DoubleClick1Pane \
       select-pane \; \
       send-keys -X select-word \; \
       send-keys -X copy-pipe-no-clear "pbcopy"
-
       bind-key -n DoubleClick1Pane \
       select-pane \; \
       copy-mode -M \; \
       send-keys -X select-word \; \
       send-keys -X copy-pipe-no-clear "pbcopy"
-
       # Triple LMB Select & Copy (Line)
       bind-key -T copy-mode-vi TripleClick1Pane \
       select-pane \; \
       send-keys -X select-line \; \
       send-keys -X copy-pipe-no-clear "pbcopy"
-
       bind-key -n TripleClick1Pane \
       select-pane \; \
       copy-mode -M \; \
       send-keys -X select-line \; \
       send-keys -X copy-pipe-no-clear "pbcopy"
-
       bind-key -T copy-mode-vi Escape send -X clear-selection
       bind-key -T copy-mode-vi 'v' send -X begin-selection
       bind-key -T copy-mode-vi 'y' send -X copy-selection-and-cancel
-
       bind k kill-session
-
       # Always open using current working directory
       bind '"' split-window -c "#{pane_current_path}"
       bind % split-window -h -c "#{pane_current_path}"
       bind c new-window -c "#{pane_current_path}"
-
       # Navigation between splits
       bind h select-pane -L
       bind j select-pane -D
       bind k select-pane -U
       bind l select-pane -R
-
       bind-key m choose-window "join-pane -s '%%'"
-
       # Reset layout and pane sizes
       bind = select-layout tiled
     '';
