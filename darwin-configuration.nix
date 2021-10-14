@@ -1,5 +1,96 @@
 { lib, config, pkgs, ... }:
 let
+  fzf-passmenu = pkgs.stdenv.mkDerivation {
+    version = "0.1.0";
+    pname = "fzf-passmenu";
+
+    src = pkgs.fetchFromGitHub {
+      owner = "mattmurr";
+      repo = "scripts";
+      rev = "d0de6b8c196bcdee0dac880c3e877e112b9a0df8";
+      sha256 = "01dfvpraclbd9871zpaiz61xrvfwn7l2s997530lwkrkigj2j6bx";
+    };
+
+    buildInputs = [
+      pkgs.fzf
+      pkgs.tree
+      pkgs.fd
+      pkgs.pass
+    ];
+
+    dontBuild = true;
+
+    installPhase = ''
+      mkdir -p $out/bin/
+      cp fzf-passmenu $out/bin/
+    '';
+  };
+
+  lombok-1_8_22 = pkgs.lombok.overrideAttrs (oldAttrs: rec {
+    name = "lombok-1.18.22";
+
+    src = builtins.fetchurl {
+      url = "https://projectlombok.org/downloads/${name}.jar";
+      sha256 = "0c8qqf8nqf9hhk1wyx5fb857qpdc1gp6f5i80k684yhx860ibvzc";
+    };
+  });
+
+  jdtls = pkgs.stdenv.mkDerivation {
+    pname = "jdtls";
+    version = "1.4.0";
+    src = builtins.fetchurl {
+      url = "https://download.eclipse.org/jdtls/milestones/1.4.0/jdt-language-server-1.4.0-202109161824.tar.gz";
+      sha256 = "1j6n3w927xxgsklh2243bml3icswvqy75n8w25wjv19h5vlrzwzk";
+    };
+
+    sourceRoot = ".";
+
+    buildInputs = [
+      pkgs.jdk
+    ];
+
+    nativeBuildInputs = [
+      pkgs.makeWrapper
+    ];
+
+    installPhase = 
+    let
+      configDir = "config_mac";
+      runtimePath = "\\$HOME/.cache/jdtls";
+    in 
+    ''
+      # Copy jars
+      install -D -t $out/share/java/plugins/ plugins/*.jar
+
+      # Copy config directory
+      install -Dm 444 -t $out/share/config ${configDir}/*
+
+      # Get latest version of launcher jar
+      launcher="$(ls $out/share/java/plugins/org.eclipse.equinox.launcher_* | sort -V | tail -n1)"
+
+      # Swapped install for mkdir, cp and chmod (try replicating with BSD coreutils `install`)
+      makeWrapper ${pkgs.jdk}/bin/java $out/bin/jdtls \
+        --run "mkdir -p ${runtimePath}/config" \
+        --run "cp -r $out/share/config/* ${runtimePath}/config" \
+        --run "chmod 1777 ${runtimePath}/config/*" \
+        --add-flags "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044" \
+        --add-flags "-javaagent:${lombok-1_8_22.out}/share/java/lombok.jar" \
+        --add-flags "-Declipse.application=org.eclipse.jdt.ls.core.id1" \
+        --add-flags "-Dosgi.bundles.defaultStartLevel=4" \
+        --add-flags "-Declipse.product=org.eclipse.jdt.ls.core.product" \
+        --add-flags "-Dlog.level=ERROR" \
+        --add-flags "-Xms1G" \
+        --add-flags "-Xmx2G" \
+        --add-flags "-jar $launcher" \
+        --add-flags "--add-modules=ALL-SYSTEM" \
+        --add-flags "--add-opens java.base/java.util=ALL-UNNAMED" \
+        --add-flags "--add-opens java.base/java.lang=ALL-UNNAMED" \
+        --add-flags "-configuration \"${runtimePath}/config\"" \
+        --add-flags "-data \"${runtimePath}/data/\$1\""
+    '';
+    system = builtins.currentSystem;
+  };
+
   lsp-colors = pkgs.vimUtils.buildVimPlugin {
     name = "lsp-colors";
     src = pkgs.fetchFromGitHub {
@@ -9,6 +100,7 @@ let
       sha256 = "1qa1kb5abrka5iixmz81kz4v8xrs4jv620nd583rhwya2jmkbaji";
     };
   };
+
   neovim = pkgs.neovim.override {
     configure = {
       plug.plugins = with pkgs.vimPlugins; [
@@ -17,7 +109,6 @@ let
         vim-gitgutter
         vim-sleuth
         nvim-lspconfig
-        nvim-jdtls
         nvim-compe
         nvim-treesitter
         lsp-colors
@@ -28,34 +119,50 @@ let
       customRC = ''
         set title
         autocmd BufEnter * let &titlestring = expand("%:t") . " - NVIM"
+
         set autoread
         autocmd CursorHold * checktime
+
         let mapleader=" "
+
         set number relativenumber
+
         set inccommand="nosplit"
+
         set hlsearch
         set ignorecase
         set smartcase
+
         set updatetime=250
         set signcolumn=yes
+
         set undofile
+
         set completeopt=menuone,noselect
+
         set t_Co=256
         set termguicolors
+
         let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
         let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
+
         set cursorline
+
         set background=dark
         colorscheme deus
         let g:deus_termcolors=256
+
         set rtp+=${pkgs.fzf.out}/share/vim-plugins/fzf
+
         let g:fzf_action = {
           \ 'ctrl-h': 'split',
           \ 'ctrl-v': 'vsplit' }
         let g:fzf_buffers_jump = 1
+
         noremap <leader>t :Files<CR>
         noremap <leader>g :GFiles<CR>
         noremap <leader>b :Buffers<CR>
+
         lua << EOF
         require"nvim-treesitter.configs".setup({
           ensure_installed = "maintained",
@@ -67,16 +174,21 @@ let
             additional_vim_regex_highlighting = false,
           }
         })
+
         local nvim_lsp = require('lspconfig')
+
         -- Use an on_attach function to only map the following keys
         -- after the language server attaches to the current buffer
         local on_attach = function(client, bufnr)
           local function buf_set_keymap(...) vim.api.nvim_buf_set_keymap(bufnr, ...) end
           local function buf_set_option(...) vim.api.nvim_buf_set_option(bufnr, ...) end
+
           -- Enable completion triggered by <c-x><c-o>
           buf_set_option('omnifunc', 'v:lua.vim.lsp.omnifunc')
+
           -- Mappings.
           local opts = { noremap=true, silent=true }
+
           -- See `:help vim.lsp.*` for documentation on any of the below functions
           buf_set_keymap('n', 'gD', '<cmd>lua vim.lsp.buf.declaration()<CR>', opts)
           buf_set_keymap('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<CR>', opts)
@@ -95,18 +207,29 @@ let
           buf_set_keymap('n', ']d', '<cmd>lua vim.lsp.diagnostic.goto_next()<CR>', opts)
           buf_set_keymap('n', '<space>q', '<cmd>lua vim.lsp.diagnostic.set_loclist()<CR>', opts)
           buf_set_keymap('n', '<space>f', '<cmd>lua vim.lsp.buf.formatting()<CR>', opts)
+
         end
+
         -- Use a loop to conveniently call 'setup' on multiple servers and
         -- map buffer local keybindings when the language server attaches
         local servers = { 'tsserver', 'ccls', 'pyright', 'gopls', 'rnix', 'jdtls' }
         for _, lsp in ipairs(servers) do
-          nvim_lsp[lsp].setup {
+          config = {
             on_attach = on_attach,
             flags = {
-              debounce_text_changes = 150,
+              debounce_text_changes = 150
             }
           }
+          workspace_folders = vim.lsp.buf.list_workspace_folders()
+          workspace_folder = vim.fn.fnamemodify(workspace_folders[0] or workspace_folders[1], ":p:h:t")
+
+          if lsp == 'jdtls' then
+            config.cmd = { 'jdtls', workspace_folder }
+          end
+
+          nvim_lsp[lsp].setup(config)
         end
+
         require'compe'.setup {
           enabled = true;
           autocomplete = true;
@@ -120,15 +243,18 @@ let
           max_kind_width = 100;
           max_menu_width = 100;
           documentation = true;
+
           source = {
             path = true;
             nvim_lsp = true;
             treesitter = true;
           };
         }
+
         local t = function(str)
           return vim.api.nvim_replace_termcodes(str, true, true, true)
         end
+
         local check_back_space = function()
             local col = vim.fn.col('.') - 1
             if col == 0 or vim.fn.getline('.'):sub(col, col):match('%s') then
@@ -137,6 +263,7 @@ let
                 return false
             end
         end
+
         -- Use (s-)tab to:
         --- move to prev/next item in completion menuone
         --- jump to prev/next snippet's placeholder
@@ -156,10 +283,12 @@ let
             return t "<S-Tab>"
           end
         end
+
         vim.api.nvim_set_keymap("i", "<Tab>", "v:lua.tab_complete()", {expr = true})
         vim.api.nvim_set_keymap("s", "<Tab>", "v:lua.tab_complete()", {expr = true})
         vim.api.nvim_set_keymap("i", "<S-Tab>", "v:lua.s_tab_complete()", {expr = true})
         vim.api.nvim_set_keymap("s", "<S-Tab>", "v:lua.s_tab_complete()", {expr = true})
+
         --This line is important for auto-import
         vim.api.nvim_set_keymap('i', '<cr>', 'compe#confirm("<cr>")', { expr = true })
         vim.api.nvim_set_keymap('i', '<c-space>', 'compe#complete()', { expr = true })
@@ -199,6 +328,10 @@ in
 
   system.defaults.LaunchServices.LSQuarantine = false;
 
+  services.nix-daemon.enable = true;
+  nix.package = pkgs.nix;
+  nix.trustedUsers = [ "root" "matt" ];
+
   # Allow non-free software
   nixpkgs.config.allowUnfree = true;
 
@@ -221,20 +354,20 @@ in
       pkgs.alacritty
       pkgs.direnv
       pkgs.python38
-      pkgs.pyright
       pkgs.nodejs-16_x
       pkgs.nodePackages.typescript
-      pkgs.nodePackages.typescript-language-server
-      pkgs.gopls
-      pkgs.rnix-lsp
       pkgs.go
       pkgs.deno
       pkgs.spring-boot
       pkgs.vscode
       pkgs.awscli2
       pkgs.aws-vault
+      pkgs.saml2aws
       pkgs.google-cloud-sdk
-      pkgs.jdk11
+      pkgs.jdk
+      pkgs.gradle
+      jdtls
+      fzf-passmenu
     ];
 
   homebrew = {
@@ -294,10 +427,10 @@ in
       alias ls='ls -G'
       alias ll='ls -l -G'
 
+      plugins=(git direnv)
+
       plugins+=tmux
       ZSH_TMUX_AUTOSTART=true
-      
-      plugins=(git direnv)
 
       plugins+=vi-mode
       VI_MODE_RESET_PROMPT_ON_MODE_CHANGE=true
@@ -320,67 +453,90 @@ in
     extraConfig = ''
       # Vi mode
       set-window-option -g mode-keys vi
+
       # Escape key is instant
       set -s escape-time 0
+
       # increase scrollback buffer size
       set -g history-limit 50000
+
       # tmux messages are displayed for 4 seconds
       set -g display-time 4000
+
       # refresh 'status-left' and 'status-right' more often
       set -g status-interval 5
+
       # focus events enabled for terminals that support them
       set -g focus-events on
+
       # super useful when using "grouped sessions" and multi-monitor setup
       setw -g aggressive-resize on
+
       set -g set-titles on
       set -g set-titles-string "#T"
       set-option -g automatic-rename on
+
       set-option -sa terminal-overrides ',XXX:RGB'
+
       set -g status-fg colour248
       set -g status-bg colour236
+
       set -g window-status-format "#[fg=colour248] #I #W "
       set -g window-status-current-format "#[fg=colour255,noreverse,bg=colour241] #I #W "
+
       set -g status-right "%a %d %b %I:%M:%S%p"
       set -g status-right-length 300
+
       set -g mouse on
       set-option -s set-clipboard off
       bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel \
       "pbcopy"
+
       bind-key -T root WheelUpPane select-pane -t =\; copy-mode -e\; send-keys -M
+
       # Double LMB Select & Copy (Word)
       bind-key -T copy-mode-vi DoubleClick1Pane \
       select-pane \; \
       send-keys -X select-word \; \
       send-keys -X copy-pipe-no-clear "pbcopy"
+
       bind-key -n DoubleClick1Pane \
       select-pane \; \
       copy-mode -M \; \
       send-keys -X select-word \; \
       send-keys -X copy-pipe-no-clear "pbcopy"
+
       # Triple LMB Select & Copy (Line)
       bind-key -T copy-mode-vi TripleClick1Pane \
       select-pane \; \
       send-keys -X select-line \; \
       send-keys -X copy-pipe-no-clear "pbcopy"
+
       bind-key -n TripleClick1Pane \
       select-pane \; \
       copy-mode -M \; \
       send-keys -X select-line \; \
       send-keys -X copy-pipe-no-clear "pbcopy"
+
       bind-key -T copy-mode-vi Escape send -X clear-selection
       bind-key -T copy-mode-vi 'v' send -X begin-selection
       bind-key -T copy-mode-vi 'y' send -X copy-selection-and-cancel
+
       bind k kill-session
+
       # Always open using current working directory
       bind '"' split-window -c "#{pane_current_path}"
       bind % split-window -h -c "#{pane_current_path}"
       bind c new-window -c "#{pane_current_path}"
+
       # Navigation between splits
       bind h select-pane -L
       bind j select-pane -D
       bind k select-pane -U
       bind l select-pane -R
+
       bind-key m choose-window "join-pane -s '%%'"
+
       # Reset layout and pane sizes
       bind = select-layout tiled
     '';
