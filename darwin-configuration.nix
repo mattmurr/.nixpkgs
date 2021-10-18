@@ -59,6 +59,8 @@ let
       runtimePath = "\\$HOME/.cache/jdtls";
     in 
     ''
+      # Adapted from https://github.com/NixOS/nixpkgs/pull/99330
+
       # Copy jars
       install -D -t $out/share/java/plugins/ plugins/*.jar
 
@@ -68,7 +70,7 @@ let
       # Get latest version of launcher jar
       launcher="$(ls $out/share/java/plugins/org.eclipse.equinox.launcher_* | sort -V | tail -n1)"
 
-      # Swapped install for mkdir, cp and chmod (try replicating with BSD coreutils `install`)
+      # Swapped install for mkdir, cp and chmod (TODO try replicating with BSD coreutils `install`)
       makeWrapper ${pkgs.jdk}/bin/java $out/bin/jdtls \
         --run "mkdir -p ${runtimePath}/config" \
         --run "cp -r $out/share/config/* ${runtimePath}/config" \
@@ -354,9 +356,13 @@ in
       pkgs.alacritty
       pkgs.direnv
       pkgs.python38
+      pkgs.pyright
       pkgs.nodejs-16_x
       pkgs.nodePackages.typescript
+      pkgs.nodePackages.typescript-language-server
+      pkgs.rnix-lsp
       pkgs.go
+      pkgs.gopls
       pkgs.deno
       pkgs.spring-boot
       pkgs.vscode
@@ -378,11 +384,13 @@ in
     taps = [
       "homebrew/cask"
       "homebrew/cask-drivers"
-    ] ++ lib.optionals isAppleSilicon ["simnalamburt/x"];
+      "homebrew/cask-versions"
+    ];
     brews = [
-    ] ++ lib.optionals isAppleSilicon ["simnalamburt/x/podman-apple-silicon"];
+      "zbar" # Does not yet compile on Nix
+    ];    
     casks = [
-      "brave-browser"
+      "firefox-nightly"
       "slack"
       "rectangle"
       "alt-tab"
@@ -391,17 +399,22 @@ in
       "zoom"
       "discord"
       "logitech-options"
-    ] ++ lib.optionals (!isAppleSilicon) ["docker"];
+      "docker"
+      "microsoft-teams"
+      "postman"
+    ];
   };
 
   environment.etc = {
     "per-user/.gitconfig".text = ''
       [user]
         name = Matthew Murray
-        email = mattmurr.uk@gmail.com
-        signingkey = C887ABBA2A2B1837A1DF243D3B11FE4ADE028D64
+        email = matthew@compti.me
+        signingkey = FF17FCB23D1BF1379F1660F240163107EC2FA65E
       [commit]
         gpgsign = true
+      [url "git@github.com:"]
+	insteadOf = https://github.com/
     '';
   };
 
