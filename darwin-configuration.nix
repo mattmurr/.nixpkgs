@@ -45,14 +45,6 @@ let
 
     sourceRoot = ".";
 
-    buildInputs = [
-      pkgs.jdk
-    ];
-
-    nativeBuildInputs = [
-      pkgs.makeWrapper
-    ];
-
     installPhase = 
     let
       configDir = "config_mac";
@@ -69,26 +61,34 @@ let
 
       # Get latest version of launcher jar
       launcher="$(ls $out/share/java/plugins/org.eclipse.equinox.launcher_* | sort -V | tail -n1)"
+      mkdir -p $out/bin
 
-      # Swapped install for mkdir, cp and chmod (TODO try replicating with BSD coreutils `install`)
-      makeWrapper ${pkgs.jdk}/bin/java $out/bin/jdtls \
-        --run "mkdir -p ${runtimePath}/config" \
-        --run "cp -r $out/share/config/* ${runtimePath}/config" \
-        --run "chmod 1777 ${runtimePath}/config/*" \
-        --add-flags "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044" \
-        --add-flags "-javaagent:${lombok-1_8_22.out}/share/java/lombok.jar" \
-        --add-flags "-Declipse.application=org.eclipse.jdt.ls.core.id1" \
-        --add-flags "-Dosgi.bundles.defaultStartLevel=4" \
-        --add-flags "-Declipse.product=org.eclipse.jdt.ls.core.product" \
-        --add-flags "-Dlog.level=ERROR" \
-        --add-flags "-Xms1G" \
-        --add-flags "-Xmx2G" \
-        --add-flags "-jar $launcher" \
-        --add-flags "--add-modules=ALL-SYSTEM" \
-        --add-flags "--add-opens java.base/java.util=ALL-UNNAMED" \
-        --add-flags "--add-opens java.base/java.lang=ALL-UNNAMED" \
-        --add-flags "-configuration \"${runtimePath}/config\"" \
-        --add-flags "-data \"${runtimePath}/data/\$1\""
+      # Manually generate a shell script wrapper that just calls java from path
+      cat << EOF > $out/bin/jdtls \
+        #!/usr/bin/env bash
+
+        # Swapped install for mkdir, cp and chmod (TODO try replicating with BSD coreutils `install`)
+        mkdir -p ${runtimePath}/config
+        cp -r $out/share/config/* ${runtimePath}/config
+        chmod 1777 ${runtimePath}/config/*
+
+        java \
+        -javaagent:${lombok-1_8_22}/share/java/lombok.jar \
+        -Declipse.application=org.eclipse.jdt.ls.core.id1 \
+        -Dosgi.bundles.defaultStartLevel=4 \
+        -Declipse.product=org.eclipse.jdt.ls.core.product \
+        -Dlog.level=ERROR \
+        -Xms1G \
+        -Xmx2G \
+        -jar $launcher \
+        --add-modules=ALL-SYSTEM \
+        --add-opens java.base/java.util=ALL-UNNAMED \
+        --add-opens java.base/java.lang=ALL-UNNAMED \
+        -configuration ${runtimePath}/config \
+        -data ${runtimePath}/data/\$1
+      EOF
+
+      chmod +x $out/bin/jdtls
     '';
     system = builtins.currentSystem;
   };
@@ -371,9 +371,9 @@ in
       pkgs.saml2aws
       pkgs.google-cloud-sdk
       pkgs.jdk
-      pkgs.gradle
       jdtls
       fzf-passmenu
+      pkgs.httpie
     ];
 
   homebrew = {
@@ -390,7 +390,7 @@ in
       "zbar" # Does not yet compile on Nix
     ];    
     casks = [
-      "firefox-nightly"
+      "firefox-developer-edition"
       "slack"
       "rectangle"
       "alt-tab"
@@ -409,8 +409,8 @@ in
     "per-user/.gitconfig".text = ''
       [user]
         name = Matthew Murray
-        email = matthew@compti.me
-        signingkey = FF17FCB23D1BF1379F1660F240163107EC2FA65E
+        email = mattmurr.uk@gmail.com
+        signingkey = C887ABBA2A2B1837A1DF243D3B11FE4ADE028D64
       [commit]
         gpgsign = true
       [url "git@github.com:"]
