@@ -393,7 +393,6 @@ in
       "firefox-developer-edition"
       "slack"
       "rectangle"
-      "alt-tab"
       "icanhazshortcut"
       "whatsapp"
       "zoom"
