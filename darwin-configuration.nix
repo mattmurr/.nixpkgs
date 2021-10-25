@@ -93,6 +93,16 @@ let
     system = builtins.currentSystem;
   };
 
+  synthetic = pkgs.vimUtils.buildVimPlugin {
+    name = "synthetic";
+    src = pkgs.fetchFromGitHub {
+      owner = "mattmurr";
+      repo = "vim-colors-synthetic";
+      rev = "20b8fce8c5ce53ff9a756744bd88c1d01158552c";
+      sha256 = "0s51av2c6kbqvq5cml39jm4nibsb7yq297xdv19766kapn83phqj";
+    };
+  };
+
   lsp-colors = pkgs.vimUtils.buildVimPlugin {
     name = "lsp-colors";
     src = pkgs.fetchFromGitHub {
@@ -103,6 +113,16 @@ let
     };
   };
 
+  nvim-lspfuzzy = pkgs.vimUtils.buildVimPlugin {
+    name = "nvim-lspfuzzy";
+    src = pkgs.fetchFromGitHub {
+      owner = "ojroques";
+      repo = "nvim-lspfuzzy";
+      rev = "c29e295010197d336e53017d039d630483a29f48";
+      sha256 = "1lzjk0mixjpjlmj4s84njnpnf6aq2k9s9v7vdbww95n15w3li73n";
+    };
+  };
+
   neovim = pkgs.neovim.override {
     configure = {
       plug.plugins = with pkgs.vimPlugins; [
@@ -110,11 +130,12 @@ let
         fzf-vim
         vim-gitgutter
         vim-sleuth
+        nvim-lspfuzzy
         nvim-lspconfig
         nvim-compe
         nvim-treesitter
         lsp-colors
-        vim-deus
+        synthetic
         lightline-vim
         nerdcommenter
       ];
@@ -142,17 +163,15 @@ let
 
         set completeopt=menuone,noselect
 
+        set smartindent
+
         set t_Co=256
         set termguicolors
-
-        let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
-        let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 
         set cursorline
 
         set background=dark
-        colorscheme deus
-        let g:deus_termcolors=256
+        colorscheme synthetic
 
         set rtp+=${pkgs.fzf.out}/share/vim-plugins/fzf
 
@@ -164,6 +183,16 @@ let
         noremap <leader>t :Files<CR>
         noremap <leader>g :GFiles<CR>
         noremap <leader>b :Buffers<CR>
+
+        lua << EOF
+        require('lspfuzzy').setup {
+          fzf_action = {
+            ['ctrl-v'] = 'vsplit',
+            ['ctrl-h'] = 'split',
+          },
+          fzf_trim = true,
+        }
+        EOF
 
         lua << EOF
         require"nvim-treesitter.configs".setup({
@@ -194,16 +223,19 @@ let
           -- See `:help vim.lsp.*` for documentation on any of the below functions
           buf_set_keymap('n', 'gD', '<cmd>lua vim.lsp.buf.declaration()<CR>', opts)
           buf_set_keymap('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<CR>', opts)
-          buf_set_keymap('n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
           buf_set_keymap('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<CR>', opts)
+          buf_set_keymap('n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>', opts)
+          buf_set_keymap('n', 'gt', '<cmd>lua vim.lsp.buf.type_definition()<CR>', opts)
+
+          buf_set_keymap('n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
           buf_set_keymap('n', '<C-k>', '<cmd>lua vim.lsp.buf.signature_help()<CR>', opts)
+
           buf_set_keymap('n', '<space>wa', '<cmd>lua vim.lsp.buf.add_workspace_folder()<CR>', opts)
           buf_set_keymap('n', '<space>wr', '<cmd>lua vim.lsp.buf.remove_workspace_folder()<CR>', opts)
           buf_set_keymap('n', '<space>wl', '<cmd>lua print(vim.inspect(vim.lsp.buf.list_workspace_folders()))<CR>', opts)
-          buf_set_keymap('n', '<space>D', '<cmd>lua vim.lsp.buf.type_definition()<CR>', opts)
+
           buf_set_keymap('n', '<space>rn', '<cmd>lua vim.lsp.buf.rename()<CR>', opts)
           buf_set_keymap('n', '<space>ca', '<cmd>lua vim.lsp.buf.code_action()<CR>', opts)
-          buf_set_keymap('n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>', opts)
           buf_set_keymap('n', '<space>e', '<cmd>lua vim.lsp.diagnostic.show_line_diagnostics()<CR>', opts)
           buf_set_keymap('n', '[d', '<cmd>lua vim.lsp.diagnostic.goto_prev()<CR>', opts)
           buf_set_keymap('n', ']d', '<cmd>lua vim.lsp.diagnostic.goto_next()<CR>', opts)
