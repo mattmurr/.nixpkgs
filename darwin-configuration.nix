@@ -334,13 +334,15 @@ let
 in
 {
   system.defaults.NSGlobalDomain = {
-    AppleShowAllExtensions = true;
     InitialKeyRepeat = 15;
     KeyRepeat = 1;
     "com.apple.trackpad.scaling" = "2";
     AppleMeasurementUnits = "Centimeters";
     AppleMetricUnits = 1;
     AppleTemperatureUnit = "Celsius";
+    AppleInterfaceStyle = "Dark";
+    AppleShowAllExtensions = true;
+
   };
 
   system.defaults.finder = {
@@ -351,13 +353,14 @@ in
 
   system.keyboard = {
     enableKeyMapping = true;
-    remapCapsLockToEscape = true;
+    remapCapsLockToControl = true;
   };
 
   system.defaults.trackpad = {
     ActuationStrength = 0;
     FirstClickThreshold = 0;
     SecondClickThreshold = 0;
+    Clicking = true;
   };
 
   system.defaults.LaunchServices.LSQuarantine = false;
@@ -422,7 +425,7 @@ in
       "zbar" # Does not yet compile on Nix
     ];    
     casks = [
-      "firefox-developer-edition"
+      "google-chrome"
       "slack"
       "rectangle"
       "icanhazshortcut"
@@ -433,6 +436,7 @@ in
       "docker"
       "microsoft-teams"
       "postman"
+      "spotify"
     ];
   };
 
