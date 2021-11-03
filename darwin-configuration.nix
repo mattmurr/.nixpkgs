@@ -26,6 +26,10 @@ let
     '';
   };
 
+  nodePackages = import ./node-packages/default.nix {
+    inherit pkgs;
+  };
+
   lombok-1_8_22 = pkgs.lombok.overrideAttrs (oldAttrs: rec {
     name = "lombok-1.18.22";
 
@@ -45,51 +49,51 @@ let
 
     sourceRoot = ".";
 
-    installPhase = 
-    let
-      configDir = "config_mac";
-      runtimePath = "\\$HOME/.cache/jdtls";
-    in 
-    ''
-      # Adapted from https://github.com/NixOS/nixpkgs/pull/99330
+    installPhase =
+      let
+        configDir = "config_mac";
+        runtimePath = "\\$HOME/.cache/jdtls";
+      in
+      ''
+        # Adapted from https://github.com/NixOS/nixpkgs/pull/99330
 
-      # Copy jars
-      install -D -t $out/share/java/plugins/ plugins/*.jar
+        # Copy jars
+        install -D -t $out/share/java/plugins/ plugins/*.jar
 
-      # Copy config directory
-      install -Dm 444 -t $out/share/config ${configDir}/*
+        # Copy config directory
+        install -Dm 444 -t $out/share/config ${configDir}/*
 
-      # Get latest version of launcher jar
-      launcher="$(ls $out/share/java/plugins/org.eclipse.equinox.launcher_* | sort -V | tail -n1)"
-      mkdir -p $out/bin
+        # Get latest version of launcher jar
+        launcher="$(ls $out/share/java/plugins/org.eclipse.equinox.launcher_* | sort -V | tail -n1)"
+        mkdir -p $out/bin
 
-      # Manually generate a shell script wrapper that just calls java from path
-      cat << EOF > $out/bin/jdtls \
-        #!/usr/bin/env bash
+        # Manually generate a shell script wrapper that just calls java from path
+        cat << EOF > $out/bin/jdtls \
+          #!/usr/bin/env bash
 
-        # Swapped install for mkdir, cp and chmod (TODO try replicating with BSD coreutils `install`)
-        mkdir -p ${runtimePath}/config
-        cp -r $out/share/config/* ${runtimePath}/config
-        chmod 1777 ${runtimePath}/config/*
+          # Swapped install for mkdir, cp and chmod (TODO try replicating with BSD coreutils `install`)
+          mkdir -p ${runtimePath}/config
+          cp -r $out/share/config/* ${runtimePath}/config
+          chmod 1777 ${runtimePath}/config/*
 
-        java \
-        -javaagent:${lombok-1_8_22}/share/java/lombok.jar \
-        -Declipse.application=org.eclipse.jdt.ls.core.id1 \
-        -Dosgi.bundles.defaultStartLevel=4 \
-        -Declipse.product=org.eclipse.jdt.ls.core.product \
-        -Dlog.level=ERROR \
-        -Xms1G \
-        -Xmx2G \
-        -jar $launcher \
-        --add-modules=ALL-SYSTEM \
-        --add-opens java.base/java.util=ALL-UNNAMED \
-        --add-opens java.base/java.lang=ALL-UNNAMED \
-        -configuration ${runtimePath}/config \
-        -data ${runtimePath}/data/\$1
-      EOF
+          java \
+          -javaagent:${lombok-1_8_22}/share/java/lombok.jar \
+          -Declipse.application=org.eclipse.jdt.ls.core.id1 \
+          -Dosgi.bundles.defaultStartLevel=4 \
+          -Declipse.product=org.eclipse.jdt.ls.core.product \
+          -Dlog.level=ERROR \
+          -Xms1G \
+          -Xmx2G \
+          -jar $launcher \
+          --add-modules=ALL-SYSTEM \
+          --add-opens java.base/java.util=ALL-UNNAMED \
+          --add-opens java.base/java.lang=ALL-UNNAMED \
+          -configuration ${runtimePath}/config \
+          -data ${runtimePath}/data/\$1
+        EOF
 
-      chmod +x $out/bin/jdtls
-    '';
+        chmod +x $out/bin/jdtls
+      '';
     system = builtins.currentSystem;
   };
 
@@ -127,13 +131,15 @@ let
     configure = {
       plug.plugins = with pkgs.vimPlugins; [
         vim-nix
-        fzf-vim
         vim-gitgutter
         vim-sleuth
-        nvim-lspfuzzy
         nvim-lspconfig
         nvim-compe
         nvim-treesitter
+        formatter-nvim
+        plenary-nvim
+        telescope-nvim
+        telescope-fzf-native-nvim
         lsp-colors
         synthetic
         lightline-vim
@@ -173,25 +179,81 @@ let
         set background=dark
         colorscheme synthetic
 
-        set rtp+=${pkgs.fzf.out}/share/vim-plugins/fzf
+        lua << EOF
+        local actions = require('telescope.actions')
+        require('telescope').setup{
+          fzf = {
+            fuzzy = true,
+            override_generic_sorter = true,
+            override_file_sorter = true,
+            case_mode = "smart_case",
+          },
+          defaults = {
+            mappings = {
+              i = {
+                ["<esc>"] = actions.close,
+                ["<C-j>"] = actions.move_selection_next,
+                ["<C-k>"] = actions.move_selection_previous,
+              },
+              n = {
+                ["<C-h>"] = actions.select_horizontal
+              }
+            },
+          }
+        }
+        require('telescope').load_extension('fzf')
 
-        let g:fzf_action = {
-          \ 'ctrl-h': 'split',
-          \ 'ctrl-v': 'vsplit' }
-        let g:fzf_buffers_jump = 1
-
-        noremap <leader>t :Files<CR>
-        noremap <leader>g :GFiles<CR>
-        noremap <leader>b :Buffers<CR>
+        vim.api.nvim_set_keymap('n', '<leader>t', '<cmd>lua require("telescope.builtin").find_files()<CR>', { noremap = true })
+        vim.api.nvim_set_keymap('n', '<leader>g', '<cmd>lua require("telescope.builtin") live_grep()<CR>', { noremap = true })
+        vim.api.nvim_set_keymap('n', '<leader>b', '<cmd>lua require("telescope.builtin") buffers()<CR>', { noremap = true })
+        vim.api.nvim_set_keymap('n', '<leader>h', '<cmd>lua require("telescope.builtin") help_tags()<CR>', {noremap = true})
+        EOF
 
         lua << EOF
-        require('lspfuzzy').setup {
-          fzf_action = {
-            ['ctrl-v'] = 'vsplit',
-            ['ctrl-h'] = 'split',
-          },
-          fzf_trim = true,
+        local prettierd = function()
+          return {
+            exe = "${nodePackages."@fsouza/prettierd".out}/bin/prettierd",
+            args = { vim.api.nvim_buf_get_name(0) },
+            stdin = true
+          }
+        end
+
+        local google_java_format = function()
+          return {
+            exe = "${pkgs.google-java-format.out}/bin/google-java-format",
+            args = { vim.api.nvim_buf_get_name(0) },
+            stdin = true
+          }
+        end
+
+        require('formatter').setup {
+          filetype = {
+            javascript = { prettierd },
+            javascriptreact = { prettierd },
+            typescriptreact = { prettierd },
+            typescript = { prettierd },
+            html = { prettierd },
+            nix = {
+              function()
+                return {
+                  exe = "${pkgs.nixpkgs-fmt.out}/bin/nixpkgs-fmt",
+                  stdin = true
+                }
+              end
+            },
+            go = {
+              function()
+                return {
+                  exe = "${pkgs.go.out}/bin/gofmt",
+                  stdin = true
+                }
+              end
+            },
+            java = { google_java_format }
+          }
         }
+
+        vim.api.nvim_set_keymap('n', '<space>f', '<cmd> Format<CR>', { noremap = true })
         EOF
 
         lua << EOF
@@ -208,6 +270,13 @@ let
 
         local nvim_lsp = require('lspconfig')
 
+        vim.lsp.handlers['textDocument/publishDiagnostics'] = vim.lsp.with(vim.lsp.diagnostic.on_publish_diagnostics, {
+          virtual_text = false,
+          signs = true,
+          underline = true,
+          update_in_insert = false,
+        })
+
         -- Use an on_attach function to only map the following keys
         -- after the language server attaches to the current buffer
         local on_attach = function(client, bufnr)
@@ -222,10 +291,10 @@ let
 
           -- See `:help vim.lsp.*` for documentation on any of the below functions
           buf_set_keymap('n', 'gD', '<cmd>lua vim.lsp.buf.declaration()<CR>', opts)
-          buf_set_keymap('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<CR>', opts)
-          buf_set_keymap('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<CR>', opts)
-          buf_set_keymap('n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>', opts)
-          buf_set_keymap('n', 'gt', '<cmd>lua vim.lsp.buf.type_definition()<CR>', opts)
+          buf_set_keymap('n', 'gd', '<cmd>lua require("telescope.builtin").lsp_definitions()<CR>', opts)
+          buf_set_keymap('n', 'gi', '<cmd>lua require("telescope.builtin").lsp_implementations()<CR>', opts)
+          buf_set_keymap('n', 'gr', '<cmd>lua require("telescope.builtin").lsp_references()<CR>', opts)
+          buf_set_keymap('n', 'gt', '<cmd>lua require("telescope.builtin").lsp_type_definitions()<CR>', opts)
 
           buf_set_keymap('n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
           buf_set_keymap('n', '<C-k>', '<cmd>lua vim.lsp.buf.signature_help()<CR>', opts)
@@ -233,15 +302,15 @@ let
           buf_set_keymap('n', '<space>wa', '<cmd>lua vim.lsp.buf.add_workspace_folder()<CR>', opts)
           buf_set_keymap('n', '<space>wr', '<cmd>lua vim.lsp.buf.remove_workspace_folder()<CR>', opts)
           buf_set_keymap('n', '<space>wl', '<cmd>lua print(vim.inspect(vim.lsp.buf.list_workspace_folders()))<CR>', opts)
+          buf_set_keymap('n', '<space>wE', '<cmd>lua require("telescope.builtin").lsp_workspace_diagnostics()<CR>', opts)
 
           buf_set_keymap('n', '<space>rn', '<cmd>lua vim.lsp.buf.rename()<CR>', opts)
-          buf_set_keymap('n', '<space>ca', '<cmd>lua vim.lsp.buf.code_action()<CR>', opts)
+          buf_set_keymap('n', '<space>ca', '<cmd>lua require("telescope.builtin").lsp_code_actions()<CR>', opts)
+          buf_set_keymap('v', '<space>ca', '<cmd>lua require("telescope.builtin").lsp_range_code_actions()<CR>', opts)
           buf_set_keymap('n', '<space>e', '<cmd>lua vim.lsp.diagnostic.show_line_diagnostics()<CR>', opts)
-          buf_set_keymap('n', '[d', '<cmd>lua vim.lsp.diagnostic.goto_prev()<CR>', opts)
-          buf_set_keymap('n', ']d', '<cmd>lua vim.lsp.diagnostic.goto_next()<CR>', opts)
-          buf_set_keymap('n', '<space>q', '<cmd>lua vim.lsp.diagnostic.set_loclist()<CR>', opts)
-          buf_set_keymap('n', '<space>f', '<cmd>lua vim.lsp.buf.formatting()<CR>', opts)
-
+          buf_set_keymap('n', '[e', '<cmd>lua vim.lsp.diagnostic.goto_prev()<CR>', opts)
+          buf_set_keymap('n', ']e', '<cmd>lua vim.lsp.diagnostic.goto_next()<CR>', opts)
+          buf_set_keymap('n', '<space>E', '<cmd>lua require("telescope.builtin").lsp_document_diagnostics()<CR>', opts)
         end
 
         -- Use a loop to conveniently call 'setup' on multiple servers and
@@ -252,15 +321,32 @@ let
             on_attach = on_attach,
             flags = {
               debounce_text_changes = 150
-            }
+            },
+            capabilities = vim.lsp.protocol.make_client_capabilities()
           }
           workspace_folders = vim.lsp.buf.list_workspace_folders()
           workspace_folder = vim.fn.fnamemodify(workspace_folders[0] or workspace_folders[1], ":p:h:t")
 
           if lsp == 'jdtls' then
             config.cmd = { 'jdtls', workspace_folder }
+            config.settings = {
+              ['java.format.settings.url'] = "https://gist.githubusercontent.com/mattmurr/c77eb5f97cfeeb17ae3ee60289baf647/raw/1acc9a9a459245d5788b8c7bcbab0ff266f6b849/intellij-google-style120.xml",
+              ['java.format.settings.profile'] = "GoogleStyle",
+              java = {
+                signatureHelp = { enabled = true };
+                completion = {
+                  favoriteStaticMembers = {
+                    "org.hamcrest.MatcherAssert.assertThat",
+                    "org.hamcrest.Matchers.*",
+                    "org.hamcrest.CoreMatchers.*",
+                    "org.junit.jupiter.api.Assertions.*",
+                    "org.mockito.Mockito.*"
+                  }
+                };
+              }
+            }
           end
-
+          
           nvim_lsp[lsp].setup(config)
         end
 
@@ -396,6 +482,7 @@ in
       pkgs.nodePackages.typescript
       pkgs.nodePackages.typescript-language-server
       pkgs.rnix-lsp
+      pkgs.nixpkgs-fmt
       pkgs.go
       pkgs.gopls
       pkgs.deno
@@ -409,6 +496,7 @@ in
       jdtls
       fzf-passmenu
       pkgs.httpie
+      pkgs.nodePackages.node2nix
     ];
 
   homebrew = {
@@ -423,7 +511,7 @@ in
     ];
     brews = [
       "zbar" # Does not yet compile on Nix
-    ];    
+    ];
     casks = [
       "google-chrome"
       "slack"
@@ -437,19 +525,21 @@ in
       "microsoft-teams"
       "postman"
       "spotify"
+      "obsidian"
+      "bitwarden"
     ];
   };
 
   environment.etc = {
     "per-user/.gitconfig".text = ''
-      [user]
-        name = Matthew Murray
-        email = mattmurr.uk@gmail.com
-        signingkey = C887ABBA2A2B1837A1DF243D3B11FE4ADE028D64
-      [commit]
-        gpgsign = true
-      [url "git@github.com:"]
-	insteadOf = https://github.com/
+          [user]
+            name = Matthew Murray
+            email = mattmurr.uk@gmail.com
+            signingkey = C887ABBA2A2B1837A1DF243D3B11FE4ADE028D64
+          [commit]
+            gpgsign = true
+          [url "git@github.com:"]
+      insteadOf = https://github.com/
     '';
   };
 
