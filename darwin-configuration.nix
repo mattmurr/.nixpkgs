@@ -32,8 +32,11 @@ in
       pkgs.awscli2
       pkgs.spring-boot
       pkgs.go
+      pkgs.gopls
+      pkgs.sumneko-lua-language-server
       pkgs.direnv
       pkgs.curlie
+      pkgs.colima
     ];
 
   environment.variables = { 

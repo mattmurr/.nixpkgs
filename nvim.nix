@@ -1,14 +1,12 @@
 { config, lib, pkgs, ... }:
 
 let
-  pluginGit = owner: repo: ref: sha: pkgs.vimUtils.buildVimPluginFrom2Nix {
-    pname = "${repo}";
+  pluginGit = ref: repo: pkgs.vimUtils.buildVimPluginFrom2Nix {
+    pname = "${lib.strings.sanitizeDerivationName repo}";
     version = ref;
-    src = pkgs.fetchFromGitHub {
-      owner = owner;
-      repo = repo;
-      rev = ref;
-      sha256 = sha;
+    src = builtins.fetchGit {
+      url = "https://github.com/${repo}.git";
+      ref = ref;
     };
   };
   plugin = pluginGit "HEAD";
@@ -20,13 +18,18 @@ let
         start = [
           nvim-treesitter.withAllGrammars
           nvim-lspconfig
-          fzf-lua
           nvim-web-devicons
           cmp-buffer
           cmp-nvim-lsp
           cmp-nvim-lsp-signature-help
+          cmp_luasnip
+          luasnip
           nvim-cmp
           nerdcommenter
+          telescope-nvim
+          telescope-fzf-native-nvim
+          telescope-ui-select-nvim
+          telescope-file-browser-nvim
 
           vim-sleuth
 
@@ -37,6 +40,8 @@ let
 
           kanagawa-nvim
           lualine-nvim
+
+          (plugin "WhoIsSethDaniel/lualine-lsp-progress.nvim")
         ];
       };
       customRC = ''
