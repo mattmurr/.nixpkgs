@@ -12,10 +12,11 @@ let
   plugin = pluginGit "HEAD";
 
   nvim = pkgs.neovim.override {
-    vimAlias = true;
     configure = {
       packages.myPlugins = with pkgs.vimPlugins; {
         start = [
+          nvim-tree-lua
+          nvim-web-devicons
           nvim-treesitter.withAllGrammars
           nvim-lspconfig
           nvim-web-devicons
@@ -45,9 +46,9 @@ let
         ];
       };
       customRC = ''
-        lua << EOF
-          ${lib.strings.fileContents ./dotfiles/nvim/init.lua}
-        EOF
+      lua << EOF
+      require'init'
+      EOF
       '';
     };
   };

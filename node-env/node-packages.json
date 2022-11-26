@@ -1,0 +1,5 @@
+[
+  "@astrojs/language-server",
+  "typescript-language-server",
+  "@fsouza/prettierd",
+]

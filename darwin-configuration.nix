@@ -3,6 +3,9 @@
 let
   nerdfonts = (pkgs.nerdfonts.override { fonts = [ "Meslo" ]; });
 
+  nodePackages = import ./node-env/default.nix {
+    inherit pkgs;
+  };
 in 
 {
   nixpkgs.config.allowUnfree = true;
@@ -12,6 +15,7 @@ in
     fonts = [ nerdfonts ];
   };
 
+  
   # List packages installed in system profile. To search by name, run:
   # $ nix-env -qaP | grep wget
   environment.systemPackages =
@@ -33,10 +37,14 @@ in
       pkgs.spring-boot
       pkgs.go
       pkgs.gopls
+      pkgs.ltex-ls
+      pkgs.nodePackages.markdownlint-cli
       pkgs.sumneko-lua-language-server
+      pkgs.nodePackages.typescript-language-server
+      pkgs.nodePackages."@astrojs/language-server"
+      nodePackages."@fsouza/prettierd"
       pkgs.direnv
       pkgs.curlie
-      pkgs.colima
     ];
 
   environment.variables = { 
@@ -77,7 +85,7 @@ in
 
   programs.tmux = {
     enable = true;
-    extraConfig = builtins.readFile ./dotfiles/.tmux.conf;
+    #extraConfig = builtins.readFile ./dotfiles/.tmux.conf;
   };
 
   imports = [

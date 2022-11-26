@@ -12,6 +12,7 @@ vim.o.hlsearch = true
 vim.o.updatetime = 300
 vim.o.incsearch = false
 vim.wo.signcolumn = 'yes'
+vim.opt.termguicolors = true
 vim.cmd [[
 set mouse=
 set completeopt-=preview
@@ -21,6 +22,10 @@ sign define DiagnosticSignWarn text= linehl= texthl=DiagnosticSignWarn numhl=
 sign define DiagnosticSignInfo text= linehl= texthl=DiagnosticSignInfo numhl=
 sign define DiagnosticSignHint text=💡 linehl= texthl=DiagnosticSignHint numhl=
 ]]
+
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
+require("nvim-tree").setup()
 
 local actions = require 'telescope.actions'
 require 'telescope'.setup {
@@ -66,6 +71,9 @@ require('kanagawa').setup({
 vim.cmd("colorscheme kanagawa")
 
 require('lualine').setup({
+  options = {
+    disabled_filetypes = { "NvimTree" },
+  },
   sections = {
     lualine_c = {
       'lsp_progress'
@@ -82,6 +90,13 @@ require 'nvim-treesitter.configs'.setup {
     enable = true
   }
 }
+
+require("null-ls").setup({
+  sources = {
+    require("null-ls").builtins.formatting.prettierd,
+    require("null-ls").builtins.diagnostics.markdownlint,
+  }
+})
 
 local cmp = require 'cmp'
 local luasnip = require 'luasnip'
@@ -177,65 +192,45 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, opts)
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, opts)
 vim.keymap.set('n', '<space>q', vim.diagnostic.setloclist, opts)
 
--- Use an on_attach function to only map the following keys
--- after the language server attaches to the current buffer
-local on_attach = function(client, bufnr)
-  -- Enable completion triggered by <c-x><c-o>
-  vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
+vim.cmd[[
+autocmd FileType java lua require'jdtls_setup'.setup()
+]]
 
-  -- Mappings.
-  -- See `:help vim.lsp.*` for documentation on any of the below functions
-  local bufopts = { noremap = true, silent = true, buffer = bufnr }
-  vim.keymap.set('n', 'gd', require 'telescope.builtin'.lsp_definitions, bufopts)
-  vim.keymap.set('n', 'K', vim.lsp.buf.hover, bufopts)
-  vim.keymap.set('n', 'gi', require 'telescope.builtin'.lsp_implementations, bufopts)
-  vim.keymap.set('n', '<C-k>', vim.lsp.buf.signature_help, bufopts)
-  vim.keymap.set('n', '<space>wa', vim.lsp.buf.add_workspace_folder, bufopts)
-  vim.keymap.set('n', '<space>wr', vim.lsp.buf.remove_workspace_folder, bufopts)
-  vim.keymap.set('n', '<space>wl', function()
-    print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
-  end, bufopts)
-  vim.keymap.set('n', '<space>D', require 'telescope.builtin'.lsp_type_definitions, bufopts)
-  vim.keymap.set('n', '<space>rn', vim.lsp.buf.rename, bufopts)
-  vim.keymap.set('n', '<space>ca', vim.lsp.buf.code_action, bufopts)
-  vim.keymap.set('n', 'gr', require 'telescope.builtin'.lsp_references, bufopts)
-  vim.keymap.set('n', '<space>f', function() vim.lsp.buf.format { async = true } end, bufopts)
-  vim.keymap.set('n', '<space>we', require 'telescope.builtin'.diagnostics, bufopts)
-  vim.keymap.set('n', '<space>de', function() require 'telescope.builtin'.diagnostics { bufnr=0 } end, bufopts)
+local servers = {
+  'gopls',
+  'tsserver',
+  'sumneko_lua',
+  'pyright',
+  'astro',
+  'ltex'
+}
+
+local default_lspopts = {
+  capabilities = capabilities,
+  on_attach = require'common'.on_attach
+}
+
+for _, lsp in ipairs(servers) do
+  local lspopts = default_lspopts
+  if lsp == 'sumneko_lua' then
+    lspopts.settings = {
+      Lua = {
+        diagnostics = {
+          globals = { 'vim' },
+        },
+        workspace = {
+          -- Make the server aware of Neovim runtime files
+          library = vim.api.nvim_get_runtime_file("", true),
+        },
+      },
+    }
+  elseif lsp == 'ltex' then
+    lspopts.settings = {
+      ltex = {
+        language = "en-GB"
+      }
+    }
+  end
+  require'lspconfig'[lsp].setup(lspopts)
 end
 
-local jdtls_cmd = require('lspconfig')['jdtls'].document_config.default_config.cmd
-jdtls_cmd[1] = 'jdt-language-server'
-require('lspconfig')['jdtls'].setup {
-  capabilities = capabilities,
-  on_attach = on_attach,
-  cmd = jdtls_cmd
-}
-
-require('lspconfig')['gopls'].setup {
-  capabilities = capabilities,
-  on_attach = on_attach
-}
-
-require('lspconfig')['sumneko_lua'].setup {
-  capabilities = capabilities,
-  on_attach = on_attach,
-  settings = {
-    Lua = {
-      diagnostics = {
-        globals = { 'vim' },
-      },
-      workspace = {
-        -- Make the server aware of Neovim runtime files
-        library = vim.api.nvim_get_runtime_file("", true),
-      },
-    },
-  },
-}
-
-require("null-ls").setup({
-  sources = {
-    require("null-ls").builtins.formatting.prettierd,
-    require("null-ls").builtins.diagnostics.markdownlint,
-  }
-})
