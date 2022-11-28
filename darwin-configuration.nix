@@ -6,7 +6,7 @@ let
   nodePackages = import ./node-env/default.nix {
     inherit pkgs;
   };
-in 
+in
 {
   nixpkgs.config.allowUnfree = true;
 
@@ -15,11 +15,11 @@ in
     fonts = [ nerdfonts ];
   };
 
-  
+
   # List packages installed in system profile. To search by name, run:
   # $ nix-env -qaP | grep wget
   environment.systemPackages =
-    [ 
+    [
       pkgs.git
       pkgs.gnupg
       pkgs.fd
@@ -27,6 +27,7 @@ in
       pkgs.fzf
       pkgs.lsd
       pkgs.bat
+      pkgs.unzip
       pkgs.deno
       pkgs.jdt-language-server
       pkgs.jdk
@@ -38,6 +39,11 @@ in
       pkgs.go
       pkgs.gopls
       pkgs.ltex-ls
+      pkgs.rnix-lsp
+      pkgs.ccls
+      pkgs.nodejs
+      pkgs.nodePackages.node2nix
+      pkgs.nodePackages.vscode-langservers-extracted
       pkgs.nodePackages.markdownlint-cli
       pkgs.sumneko-lua-language-server
       pkgs.nodePackages.typescript-language-server
@@ -47,7 +53,7 @@ in
       pkgs.curlie
     ];
 
-  environment.variables = { 
+  environment.variables = {
     EDITOR = "nvim";
   };
 
@@ -83,10 +89,7 @@ in
     '';
   };
 
-  programs.tmux = {
-    enable = true;
-    #extraConfig = builtins.readFile ./dotfiles/.tmux.conf;
-  };
+  programs.tmux.enable = true;
 
   imports = [
     ./nvim.nix

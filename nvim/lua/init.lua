@@ -25,45 +25,33 @@ sign define DiagnosticSignHint text=💡 linehl= texthl=DiagnosticSignHint numhl
 
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
-require("nvim-tree").setup()
-
-local actions = require 'telescope.actions'
-require 'telescope'.setup {
-  defaults = {
-    path_display = { "smart" },
-    sorting_strategy = "ascending",
-    mappings = {
-      i = {
-        ["<esc>"] = actions.close,
-        ["<C-h>"] = actions.select_horizontal
-      },
-    },
+require("nvim-tree").setup{
+  open_on_setup = true,
+  update_focused_file = {
+    enable = true
   },
-  pickers = {
-    find_files = {
-      find_command = { "fd", "--type", "f", "--strip-cwd-prefix" }
-    },
-  },
-  extensions = {
-    ['ui-select'] = {
-      require('telescope.themes').get_dropdown {}
-    },
-    fzf = {
-      fuzzy = true,
-      override_generic_sorter = true,
-      override_file_sorter = true,
-      case_mode = "smart_case",
-    }
+  diagnostics = {
+    enable = true
   }
 }
 
-vim.keymap.set('n', '<leader>t', '<cmd>lua require("telescope.builtin").find_files()<cr>')
-vim.keymap.set('n', '<leader>g', '<cmd>lua require("telescope.builtin").live_grep()<cr>')
-vim.keymap.set('n', '<leader>b', '<cmd>lua require("telescope.builtin").buffers()<cr>')
-vim.keymap.set('n', '<leader>h', '<cmd>lua require("telescope.builtin").help_tags()<cr>')
+local opts = { noremap = true, silent = true }
+require'fzf_lsp'.setup{
+  override_ui_select = true
+}
 
-require('telescope').load_extension('fzf')
-require('telescope').load_extension('ui-select')
+vim.keymap.set('n', '<leader>t', '<cmd>:Files<cr>', opts)
+vim.keymap.set('n', '<leader>g', '<cmd>:Rg<cr>', opts)
+vim.keymap.set('n', '<leader>b', '<cmd>:Buffers<cr>', opts)
+vim.keymap.set('n', '<leader>h', '<cmd>:Helptags<cr>', opts)
+
+vim.cmd[[
+let g:fzf_action = {
+      \ 'ctrl-t': 'tab split',
+      \ 'ctrl-h': 'split',
+      \ 'ctrl-v': 'vsplit'
+  \ }
+]]
 
 require('kanagawa').setup({
   transparent = true
@@ -97,6 +85,8 @@ require("null-ls").setup({
     require("null-ls").builtins.diagnostics.markdownlint,
   }
 })
+
+require'trouble'.setup()
 
 local cmp = require 'cmp'
 local luasnip = require 'luasnip'
@@ -186,7 +176,6 @@ cmp.setup.cmdline(':', {
 -- Set up lspconfig.
 local capabilities = require('cmp_nvim_lsp').default_capabilities()
 
-local opts = { noremap = true, silent = true }
 vim.keymap.set('n', '<space>e', vim.diagnostic.open_float, opts)
 vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, opts)
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, opts)
@@ -202,7 +191,13 @@ local servers = {
   'sumneko_lua',
   'pyright',
   'astro',
-  'ltex'
+  'ltex',
+  'eslint',
+  'cssls',
+  'html',
+  'jsonls',
+  'rnix',
+  'ccls'
 }
 
 local default_lspopts = {
@@ -221,6 +216,7 @@ for _, lsp in ipairs(servers) do
         workspace = {
           -- Make the server aware of Neovim runtime files
           library = vim.api.nvim_get_runtime_file("", true),
+          checkThirdParty = false
         },
       },
     }

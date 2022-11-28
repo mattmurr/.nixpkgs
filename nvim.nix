@@ -27,11 +27,10 @@ let
           luasnip
           nvim-cmp
           nerdcommenter
-          telescope-nvim
-          telescope-fzf-native-nvim
-          telescope-ui-select-nvim
-          telescope-file-browser-nvim
-
+          fzf-vim
+          fzf-lsp-nvim
+          trouble-nvim
+          
           vim-sleuth
 
           gitsigns-nvim
