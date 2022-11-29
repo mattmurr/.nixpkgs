@@ -25,8 +25,11 @@ sign define DiagnosticSignHint text=💡 linehl= texthl=DiagnosticSignHint numhl
 
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
-require("nvim-tree").setup{
+require("nvim-tree").setup {
   open_on_setup = true,
+  view = {
+    adaptive_size = true,
+  },
   update_focused_file = {
     enable = true
   },
@@ -36,7 +39,7 @@ require("nvim-tree").setup{
 }
 
 local opts = { noremap = true, silent = true }
-require'fzf_lsp'.setup{
+require 'fzf_lsp'.setup {
   override_ui_select = true
 }
 
@@ -45,7 +48,7 @@ vim.keymap.set('n', '<leader>g', '<cmd>:Rg<cr>', opts)
 vim.keymap.set('n', '<leader>b', '<cmd>:Buffers<cr>', opts)
 vim.keymap.set('n', '<leader>h', '<cmd>:Helptags<cr>', opts)
 
-vim.cmd[[
+vim.cmd [[
 let g:fzf_action = {
       \ 'ctrl-t': 'tab split',
       \ 'ctrl-h': 'split',
@@ -86,7 +89,7 @@ require("null-ls").setup({
   }
 })
 
-require'trouble'.setup()
+require 'trouble'.setup()
 
 local cmp = require 'cmp'
 local luasnip = require 'luasnip'
@@ -181,7 +184,7 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, opts)
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, opts)
 vim.keymap.set('n', '<space>q', vim.diagnostic.setloclist, opts)
 
-vim.cmd[[
+vim.cmd [[
 autocmd FileType java lua require'jdtls_setup'.setup()
 ]]
 
@@ -202,7 +205,7 @@ local servers = {
 
 local default_lspopts = {
   capabilities = capabilities,
-  on_attach = require'common'.on_attach
+  on_attach = require 'common'.on_attach
 }
 
 for _, lsp in ipairs(servers) do
@@ -227,6 +230,5 @@ for _, lsp in ipairs(servers) do
       }
     }
   end
-  require'lspconfig'[lsp].setup(lspopts)
+  require 'lspconfig'[lsp].setup(lspopts)
 end
-

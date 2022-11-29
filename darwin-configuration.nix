@@ -6,6 +6,7 @@ let
   nodePackages = import ./node-env/default.nix {
     inherit pkgs;
   };
+
 in
 {
   nixpkgs.config.allowUnfree = true;
@@ -27,6 +28,7 @@ in
       pkgs.fzf
       pkgs.lsd
       pkgs.bat
+      pkgs.delta
       pkgs.unzip
       pkgs.deno
       pkgs.jdt-language-server
