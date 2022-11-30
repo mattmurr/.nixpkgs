@@ -62,7 +62,14 @@ in
   # Auto upgrade nix package and the daemon service.
   services.nix-daemon.enable = true;
   nix.package = pkgs.nix;
-  nix.extraOptions = "experimental-features = nix-command flakes";
+  nix.extraOptions = ''
+  experimental-features = nix-command flakes
+  keep-outputs = true
+  keep-derivations = true
+  '';
+  environment.pathsToLink = [
+    "/share/nix-direnv"
+  ];
 
   # Create /etc/zshrc that loads the nix-darwin environment.
   programs.zsh = {
@@ -70,25 +77,27 @@ in
     enableCompletion = true;
     enableBashCompletion = true;
     interactiveShellInit = ''
-      alias ls='lsd'
-      alias ll='ls -l'
-      alias curl='curlie'
+    alias ls='lsd'
+    alias ll='ls -l'
+    alias curl='curlie'
 
-      plugins=(git direnv tmux vi-mode fzf)
-      ZSH_TMUX_AUTOSTART=true
-      VI_MODE_RESET_PROMPT_ON_MODE_CHANGE=true
-      VI_MODE_SET_CURSOR=true
-      FZF_BASE=${pkgs.fzf.out}/share/fzf
+    plugins=(git direnv tmux vi-mode fzf)
+    ZSH_TMUX_AUTOSTART=true
+    VI_MODE_RESET_PROMPT_ON_MODE_CHANGE=true
+    VI_MODE_SET_CURSOR=true
+    FZF_BASE=${pkgs.fzf.out}/share/fzf
 
-      export FZF_DEFAULT_COMMAND="fd -t f --hidden --follow --exclude '.git' --ignore-file $HOME/.gitignore --color=always"
-      export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
-      export FZF_ALT_C_COMMAND="fd -t d --hidden --follow --exclude '.git' --ignore-file $HOME/.gitignore --color=always"
-      export FZF_DEFAULT_OPTS="--height 100% --layout=reverse --border --ansi"
-      export FZF_CTRL_T_OPTS="$FZF_DEFAULT_OPTS --preview 'bat --style=numbers --color=always --line-range :500 {}'"
+    export FZF_DEFAULT_COMMAND="fd -t f --hidden --follow --exclude '.git' --ignore-file $HOME/.gitignore --color=always"
+    export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+    export FZF_ALT_C_COMMAND="fd -t d --hidden --follow --exclude '.git' --ignore-file $HOME/.gitignore --color=always"
+    export FZF_DEFAULT_OPTS="--height 100% --layout=reverse --border --ansi"
+    export FZF_CTRL_T_OPTS="$FZF_DEFAULT_OPTS --preview 'bat --style=numbers --color=always --line-range :500 {}'"
 
-      ZSH_THEME="cloud"
-      . ${pkgs.oh-my-zsh.out}/share/oh-my-zsh/oh-my-zsh.sh
+    ZSH_THEME="cloud"
+    . ${pkgs.oh-my-zsh.out}/share/oh-my-zsh/oh-my-zsh.sh
+    eval "$(direnv hook zsh)"
     '';
+
   };
 
   programs.tmux.enable = true;
