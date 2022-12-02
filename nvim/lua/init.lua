@@ -25,8 +25,11 @@ sign define DiagnosticSignHint text=💡 linehl= texthl=DiagnosticSignHint numhl
 
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
-require("nvim-tree").setup{
-  open_on_setup = true,
+require("nvim-tree").setup {
+  open_on_setup = false,
+  view = {
+    adaptive_size = true
+  },
   update_focused_file = {
     enable = true
   },
@@ -35,23 +38,54 @@ require("nvim-tree").setup{
   }
 }
 
-local opts = { noremap = true, silent = true }
-require'fzf_lsp'.setup{
-  override_ui_select = true
+local actions = require('telescope.actions')
+require('telescope').setup {
+  defaults = {
+    path_display = { "smart" },
+    sorting_strategy = "ascending",
+    mappings = {
+      i = {
+        ["<esc>"] = actions.close,
+        ["<C-h>"] = actions.select_horizontal
+      },
+    },
+  },
+  pickers = {
+    find_files = {
+      find_command = { "fd", "--type", "f", "--strip-cwd-prefix" }
+    },
+  },
+  extensions = {
+    ['ui-select'] = {
+      require('telescope.themes').get_dropdown {}
+    },
+    fzf = {
+      fuzzy = true,
+      override_generic_sorter = true,
+      override_file_sorter = true,
+      case_mode = "smart_case",
+    }
+  }
 }
 
-vim.keymap.set('n', '<leader>t', '<cmd>:Files<cr>', opts)
-vim.keymap.set('n', '<leader>g', '<cmd>:Rg<cr>', opts)
-vim.keymap.set('n', '<leader>b', '<cmd>:Buffers<cr>', opts)
-vim.keymap.set('n', '<leader>h', '<cmd>:Helptags<cr>', opts)
+require('telescope').load_extension('fzf')
+require('telescope').load_extension('ui-select')
 
-vim.cmd[[
-let g:fzf_action = {
-      \ 'ctrl-t': 'tab split',
-      \ 'ctrl-h': 'split',
-      \ 'ctrl-v': 'vsplit'
-  \ }
-]]
+local opts = { noremap = true, silent = true }
+vim.keymap.set('n', '<leader>t', require("telescope.builtin").find_files, opts)
+vim.keymap.set('n', '<leader>g', require("telescope.builtin").live_grep, opts)
+vim.keymap.set('n', '<leader>b', require("telescope.builtin").buffers, opts)
+vim.keymap.set('n', '<leader>h', require("telescope.builtin").help_tags, opts)
+
+require'zk'.setup{
+  picker = "telescope",
+  lsp = {
+    auto_attach = {
+      enabled = true,
+      filetypes = { "markdown" },
+    }
+  }
+}
 
 require('kanagawa').setup({
   transparent = true
@@ -85,8 +119,6 @@ require("null-ls").setup({
     require("null-ls").builtins.diagnostics.markdownlint,
   }
 })
-
-require'trouble'.setup()
 
 local cmp = require 'cmp'
 local luasnip = require 'luasnip'
@@ -181,7 +213,7 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, opts)
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, opts)
 vim.keymap.set('n', '<space>q', vim.diagnostic.setloclist, opts)
 
-vim.cmd[[
+vim.cmd [[
 autocmd FileType java lua require'jdtls_setup'.setup()
 ]]
 
@@ -202,7 +234,7 @@ local servers = {
 
 local default_lspopts = {
   capabilities = capabilities,
-  on_attach = require'common'.on_attach
+  on_attach = require 'common'.on_attach
 }
 
 for _, lsp in ipairs(servers) do
@@ -227,6 +259,5 @@ for _, lsp in ipairs(servers) do
       }
     }
   end
-  require'lspconfig'[lsp].setup(lspopts)
+  require 'lspconfig'[lsp].setup(lspopts)
 end
-

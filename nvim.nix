@@ -27,9 +27,12 @@ let
           luasnip
           nvim-cmp
           nerdcommenter
-          fzf-vim
-          fzf-lsp-nvim
-          trouble-nvim
+
+          zk-nvim
+
+          telescope-nvim
+          telescope-fzf-native-nvim
+          telescope-ui-select-nvim
           
           vim-sleuth
 

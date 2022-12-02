@@ -7,6 +7,14 @@ let
     inherit pkgs;
   };
 
+  jdtls = pkgs.jdt-language-server.overrideAttrs (old: rec {
+    version = "1.19.0";
+    timestamp = "202212020539";
+    src = builtins.fetchurl {
+      url = "https://download.eclipse.org/jdtls/snapshots/${version}/jdt-language-server-${version}-${timestamp}.tar.gz";
+      sha256 = "17j9cpw9jg9l2y9gb1wc90xrbryymfw5dighhag6z1sjh2bkzwdj";
+    };
+  });
 in
 {
   nixpkgs.config.allowUnfree = true;
@@ -31,7 +39,7 @@ in
       pkgs.delta
       pkgs.unzip
       pkgs.deno
-      pkgs.jdt-language-server
+      jdtls
       pkgs.jdk
       pkgs.gradle
       pkgs.maven
@@ -43,7 +51,7 @@ in
       pkgs.ltex-ls
       pkgs.rnix-lsp
       pkgs.ccls
-      pkgs.nodejs
+      pkgs.nodejs-16_x
       pkgs.nodePackages.node2nix
       pkgs.nodePackages.vscode-langservers-extracted
       pkgs.nodePackages.markdownlint-cli
@@ -53,10 +61,12 @@ in
       nodePackages."@fsouza/prettierd"
       pkgs.direnv
       pkgs.curlie
+      pkgs.zk
     ];
 
   environment.variables = {
     EDITOR = "nvim";
+    ZK_NOTEBOOK_DIR = "$HOME/notes";
   };
 
   # Auto upgrade nix package and the daemon service.
